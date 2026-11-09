@@ -198,6 +198,8 @@
         .tag-missing-list { display: flex; flex-wrap: wrap; gap: 6px; }
         .tag-missing { display: inline-flex; align-items: center; gap: 5px; background: var(--red-tint); color: var(--red-ink); border-radius: 6px; padding: 3px 9px; font-size: 12.5px; font-weight: 600; }
         .rule-hint { font-size: 12.5px; color: var(--text-2); display: block; margin-top: 4px; }
+        .fix-text { display: flex; gap: 9px; align-items: baseline; font-size: 13.5px; color: var(--text); }
+        .fix-text i { color: var(--red-ink); font-size: 12px; flex: 0 0 auto; }
         .cat-missing-note { font-size: 13px; color: var(--text-2); }
         .cat-value-missing { color: var(--red-ink); font-weight: 600; }
         .wait-badge { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; padding: 5px 11px; border-radius: 999px; }
@@ -597,11 +599,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         const sub = SUBTABS.find(s => s.id === activeSubTab);
         if (activeSubTab === 'vse') {
-            const fix = o => o.sub === 'nazev' ? 'V názvu chybí: ' + (o._diag.chybejici.join(', ') || '–') : o.sub === 'kategorie' ? o.note : 'Chybí parametry: ' + (o._missingParams.join(', ') || '–');
+            const fix = o => o.sub === 'nazev' ? 'Doplňte do názvu: ' + (o._diag.chybejici.join(', ') || 'ověřte ručně')
+                : o.sub === 'kategorie' ? 'Opravte kategorii. ' + o.note
+                : 'Doplňte parametry: ' + (o._missingParams.join(', ') || 'povinné parametry');
             return { offers: sub.data, title: 'Nespárované: všechny nabídky', columns: [
                 COL_ID, COL_NAME, COL_CAT,
-                { header: 'Důvod', cls: 'col-url', render: o => `<span class="pill danger"><i class="${o.rIcon}" aria-hidden="true"></i> ${escapeHTML(o.reason)}</span>`, csv: o => o.reason },
-                { header: 'Co opravit', cls: 'col-issue', render: o => `<span class="cat-missing-note">${escapeHTML(fix(o))}</span>`, csv: o => fix(o) },
+                { header: 'Co je potřeba opravit', cls: 'col-issue', render: o => `<span class="fix-text"><i class="${o.rIcon}" aria-hidden="true" title="${escapeHTML(o.reason)}"></i>${escapeHTML(fix(o))}</span>`, csv: o => fix(o) },
             ]};
         }
         if (activeSubTab === 'nazev') {
