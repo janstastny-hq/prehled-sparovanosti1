@@ -583,9 +583,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (activeTab === 'parovane') {
             return { offers: pairedOffers, title: 'Spárované nabídky', columns: [
                 COL_ID,
-                { header: 'Produktová karta na Heurece', cls: 'col-name', render: o => `<a class="o-name" href="${escapeHTML(o.heureka_url)}" target="_blank" rel="noopener">${escapeHTML(o.name)} <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i></a>`, csv: o => o.name },
+                { header: 'Název nabídky na e-shopu', cls: 'col-name', render: o => `<a class="o-name" href="${escapeHTML(o.url)}" target="_blank" rel="noopener" title="Otevřít nabídku na e-shopu">${escapeHTML(o.offerName)} <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i></a>`, csv: o => o.offerName },
                 COL_CAT,
-                { header: 'Název nabídky na e-shopu', cls: 'col-url', render: o => `<a class="o-name" href="${escapeHTML(o.url)}" target="_blank" rel="noopener" title="Otevřít nabídku na e-shopu">${escapeHTML(o.offerName)} <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i></a>`, csv: o => o.offerName },
+                { header: 'Produktová karta na Heurece', cls: 'col-url', render: o => `<a class="o-name" href="${escapeHTML(o.heureka_url)}" target="_blank" rel="noopener" title="Otevřít produktovou kartu na Heurece">${escapeHTML(o.name)} <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i></a>`, csv: o => o.name },
             ]};
         }
         if (activeTab === 'cekajici') {
