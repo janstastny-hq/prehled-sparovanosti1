@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Přehled spárovanosti | Heureka.cz</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @property --pct { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+        :root {
+            --blue: #0072ce;
+            --blue-dark: #005ea2;
+            --blue-tint: #e8f2fb;
+            --text: #1f2933;
+            --text-2: #5b6670;
+            --border: #e1e5ea;
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --th-bg: #f6f8fa;
+
+            --green: #2f9e44;   --green-tint: #e9f7ec;  --green-ink: #1e6b2f;
+            --red: #d6336c;     --red-tint: #fdecf2;    --red-ink: #a61e4d;
+            --orange: #e8590c;  --orange-tint: #fff1e6; --orange-ink: #a63f06;
+
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+            --shadow-lg: 0 8px 24px rgba(16,24,40,.12);
+            --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        html { scroll-behavior: smooth; overflow-x: hidden; }
+        body { font-family: var(--font); margin: 0; background: var(--bg); color: var(--text); line-height: 1.5; font-size: 14px; -webkit-font-smoothing: antialiased; }
+        button { font-family: inherit; }
+        :focus-visible { outline: 3px solid rgba(0,114,206,.45); outline-offset: 2px; border-radius: 6px; }
+        a { color: var(--blue); }
+
+        .skip-link { position: absolute; left: -9999px; top: 8px; background: var(--blue); color: #fff; padding: 8px 14px; border-radius: 6px; z-index: 2000; }
+        .skip-link:focus { left: 8px; }
+
+        .container { max-width: 1180px; margin: 0 auto; padding: 24px 24px 64px; }
+
+        /* ---------- Hlavička + hledání ---------- */
+        .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+        .page-head h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
+        .page-sub { margin: 4px 0 0; color: var(--text-2); font-size: 14.5px; max-width: 560px; }
+
+        .gsearch { position: relative; flex: 0 1 380px; min-width: 260px; z-index: 995; }
+        .gsearch i.fa-search { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
+        #globalProductSearchInput {
+            width: 100%; height: 44px; padding: 0 44px 0 40px; font-size: 14.5px; font-family: inherit;
+            border: 1px solid var(--border); border-radius: 22px; background: var(--card); color: var(--text); box-shadow: var(--shadow);
+            transition: border-color .15s, box-shadow .15s;
+        }
+        #globalProductSearchInput::placeholder { color: #8a949e; }
+        #globalProductSearchInput:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(0,114,206,.15); }
+        .gsearch kbd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font: 600 12px var(--font); color: var(--text-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; background: var(--th-bg); pointer-events: none; }
+        .search-results-container {
+            position: absolute; top: calc(100% + 8px); right: 0; width: min(560px, calc(100vw - 32px)); max-height: 420px; overflow-y: auto;
+            background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg);
+            display: none;
+        }
+        .search-results-container.active { display: block; }
+        .search-results-container .sr-empty { padding: 22px 16px; text-align: center; color: var(--text-2); margin: 0; }
+        .sr-head { padding: 10px 16px 6px; font-size: 12px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+        .search-result-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 11px 16px; border: 0; border-top: 1px solid #eef0f3; background: none; cursor: pointer; }
+        .search-result-item:hover, .search-result-item:focus-visible { background: var(--blue-tint); }
+        .search-result-item .product-name { font-weight: 600; color: var(--text); display: block; }
+        .search-result-item .product-item-id { font-size: 12px; color: var(--text-2); }
+
+        .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+        .pill.success { background: var(--green-tint); color: var(--green-ink); }
+        .pill.danger  { background: var(--red-tint);   color: var(--red-ink); }
+        .pill.warning { background: var(--orange-tint); color: var(--orange-ink); }
+
+        #search-page-overlay { position: fixed; inset: 0; background: rgba(20,28,38,.45); z-index: 990; display: none; }
+
+        /* ---------- Hero ---------- */
+        .hero { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; margin-bottom: 16px; }
+        .hero-main { display: flex; gap: 32px; align-items: center; }
+        .ring {
+            --pct: 0; --ring-color: var(--blue);
+            flex: 0 0 auto; width: 132px; height: 132px; border-radius: 50%; position: relative;
+            background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), #e9edf1 0);
+            transition: --pct .9s cubic-bezier(.2,.7,.2,1);
+            display: grid; place-items: center;
+        }
+        .ring::before { content: ''; position: absolute; inset: 14px; background: var(--card); border-radius: 50%; }
+        .ring-inner { position: relative; text-align: center; line-height: 1.1; }
+        .ring-inner strong { display: block; font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+        .ring-inner span { font-size: 12px; color: var(--text-2); }
+        .ring.tone-red { --ring-color: var(--red); } .ring.tone-orange { --ring-color: var(--orange); } .ring.tone-green { --ring-color: var(--green); }
+
+        .hero-text { flex: 1 1 auto; min-width: 0; }
+        .hero-text h2 { margin: 0 0 6px; font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+        .hero-text p { margin: 0 0 16px; color: var(--text-2); font-size: 14.5px; max-width: 620px; }
+        .hero-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        .btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s, transform .1s; text-decoration: none; }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: var(--blue); color: #fff; }
+        .btn-primary:hover { background: var(--blue-dark); }
+        .btn-primary.danger { background: var(--red); } .btn-primary.danger:hover { background: #b02a5b; }
+        .btn-ghost { background: transparent; color: var(--blue); border-color: transparent; padding: 0 10px; }
+        .btn-ghost:hover { background: var(--blue-tint); }
+        .btn-outline { background: var(--card); color: var(--text); border-color: var(--border); height: 36px; padding: 0 14px; font-size: 13.5px; }
+        .btn-outline:hover { border-color: var(--blue); color: var(--blue); }
+
+        .dist { margin-top: 24px; }
+        .dist-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: #e9edf1; gap: 2px; }
+        .dist-seg { border: 0; padding: 0; cursor: pointer; min-width: 6px; transition: flex-grow .6s ease, opacity .15s; }
+        .dist-seg:hover { opacity: .8; }
+        .dist-seg[data-tab="parovane"] { background: var(--green); }
+        .dist-seg[data-tab="nesparovane"] { background: var(--red); }
+        .dist-seg[data-tab="cekajici"] { background: var(--orange); }
+        .dist-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--text-2); }
+        .dist-legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .dist-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        /* ---------- Stavové karty (= hlavní záložky) ---------- */
+        .status-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+        .status-card {
+            --c: var(--green); --tint: var(--green-tint);
+            text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px;
+            cursor: pointer; box-shadow: var(--shadow); display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; align-items: center;
+            transition: border-color .15s, box-shadow .15s, background .15s; position: relative;
+        }
+        .status-card[data-tab="nesparovane"] { --c: var(--red); --tint: var(--red-tint); }
+        .status-card[data-tab="cekajici"] { --c: var(--orange); --tint: var(--orange-tint); }
+        .status-card:hover { border-color: var(--c); }
+        .status-card .sc-icon { grid-row: 1 / span 2; width: 44px; height: 44px; border-radius: 12px; background: var(--tint); color: var(--c); display: grid; place-items: center; font-size: 18px; }
+        .status-card .sc-num { font-size: 26px; font-weight: 700; line-height: 1.1; color: var(--text); }
+        .status-card .sc-title { font-size: 14px; font-weight: 600; color: var(--text); }
+        .status-card .sc-hint { grid-column: 1 / -1; margin-top: 8px; font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
+        .status-card[aria-selected="true"] { border-color: var(--c); background: var(--tint); box-shadow: 0 0 0 1px var(--c), var(--shadow); }
+        .status-card[aria-selected="true"]::after {
+            content: ''; position: absolute; left: 50%; bottom: -9px; width: 16px; height: 16px; background: var(--tint);
+            border-right: 1px solid var(--c); border-bottom: 1px solid var(--c); transform: translateX(-50%) rotate(45deg); z-index: 1;
+        }
+
+        /* ---------- Panel s tabulkou ---------- */
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-top: 22px; scroll-margin-top: 16px; }
+        .panel-top { padding: 20px 24px 0; }
+        .panel-title-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .panel-title-row h3 { margin: 0; font-size: 18px; font-weight: 700; }
+        .count-note { color: var(--text-2); font-weight: 500; font-size: 13.5px; margin-left: 8px; }
+
+        .subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; padding: 4px; background: var(--bg); border-radius: 10px; width: fit-content; max-width: 100%; }
+        .subtab-btn {
+            height: 36px; padding: 0 14px; border-radius: 7px; border: 0; background: transparent; color: var(--text-2);
+            font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background .15s, color .15s;
+        }
+        .subtab-btn:hover:not([aria-selected="true"]) { color: var(--text); background: rgba(0,0,0,.04); }
+        .subtab-btn[aria-selected="true"] { background: var(--card); color: var(--red-ink); box-shadow: var(--shadow); }
+        .subtab-btn .tab-count { font-size: 12px; font-weight: 700; background: #e4e8ec; color: var(--text-2); padding: 0 7px; border-radius: 10px; min-width: 22px; text-align: center; }
+        .subtab-btn[aria-selected="true"] .tab-count { background: var(--red-tint); color: var(--red-ink); }
+
+        .help-box { display: flex; gap: 14px; margin: 16px 24px 0; padding: 14px 16px; border-radius: 10px; background: var(--blue-tint); border: 1px solid #cfe3f6; }
+        .help-box > i { color: var(--blue); font-size: 18px; margin-top: 2px; }
+        .help-box strong { display: block; margin-bottom: 2px; }
+        .help-box p { margin: 0; color: #2b3e50; }
+        .help-box a { font-weight: 600; white-space: nowrap; }
+        .help-box.neutral { background: var(--bg); border-color: var(--border); }
+        .help-box.neutral > i { color: var(--text-2); }
+
+        .toolbar { display: flex; gap: 10px; align-items: center; padding: 16px 24px; }
+        .table-search { position: relative; flex: 1 1 auto; max-width: 420px; }
+        .table-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-2); font-size: 13px; pointer-events: none; }
+        .table-search-input { width: 100%; height: 36px; padding: 0 12px 0 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; }
+        .table-search-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,114,206,.15); }
+        .cat-select { height: 36px; max-width: 280px; padding: 0 32px 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 14px; color: var(--text); background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235b6670' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center; appearance: none; -webkit-appearance: none; cursor: pointer; }
+        .cat-select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,114,206,.15); }
+        .cat-select.active { border-color: var(--blue); background-color: var(--blue-tint); font-weight: 600; }
+        .toolbar .spacer { flex: 1; }
+
+        .table-wrap { overflow-x: auto; border-top: 1px solid var(--border); }
+        table.offers { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table.offers th { position: sticky; top: 0; background: var(--th-bg); text-align: left; font-size: 12px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; padding: 11px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        table.offers td { padding: 14px 16px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+        table.offers tbody tr:last-child td { border-bottom: 0; }
+        table.offers tbody tr:hover td { background: #fafbfd; }
+        table.offers tr.flash td { animation: flash 2.4s ease-out; }
+        @keyframes flash { 0%, 40% { background: #fff6c8; } 100% { background: transparent; } }
+        .col-id { width: 130px; } .col-name { width: 34%; } .col-cat { width: 22%; } .col-issue { width: 30%; } .col-url { width: 36%; } .col-wait { width: 30%; }
+
+        .o-name { font-weight: 600; color: var(--text); text-decoration: none; display: inline-block; }
+        a.o-name { color: var(--blue); font-weight: 600; } a.o-name:hover { text-decoration: underline; }
+        .o-url { display: block; margin-top: 3px; font-size: 12.5px; color: var(--text-2); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+        .o-url:hover { color: var(--blue); text-decoration: underline; }
+        .o-url-plain { font-size: 13px; color: var(--text-2); }
+
+        .id-chip { display: inline-flex; align-items: center; gap: 7px; font: 600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; cursor: pointer; transition: border-color .15s, background .15s; }
+        .id-chip i { color: var(--text-2); font-size: 11px; }
+        .id-chip:hover { border-color: var(--blue); background: var(--blue-tint); }
+
+        .tag-missing-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tag-missing { display: inline-flex; align-items: center; gap: 5px; background: var(--red-tint); color: var(--red-ink); border-radius: 6px; padding: 3px 9px; font-size: 12.5px; font-weight: 600; }
+        .rule-hint { font-size: 12.5px; color: var(--text-2); display: block; margin-top: 4px; }
+        .cat-missing-note { font-size: 13px; color: var(--text-2); }
+        .cat-value-missing { color: var(--red-ink); font-weight: 600; }
+        .wait-badge { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; padding: 5px 11px; border-radius: 999px; }
+        .wait-badge.admin { background: #fff4d6; color: #7a5b00; }
+        .wait-badge.category { background: #e3f6fb; color: #0b6478; }
+
+        .empty-note { padding: 44px 16px; text-align: center; color: var(--text-2); }
+        .empty-note i { display: block; font-size: 28px; margin-bottom: 10px; color: var(--green); }
+        .empty-note strong { display: block; color: var(--text); font-size: 15px; margin-bottom: 2px; }
+
+        /* ---------- Toast ---------- */
+        .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); background: #1f2933; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13.5px; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 3000; }
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        /* ---------- Responzivita ---------- */
+        @media (max-width: 900px) {
+            .status-card .sc-hint { display: none; }
+            .status-card { grid-template-columns: 1fr; gap: 4px; padding: 14px; }
+            .status-card .sc-icon { display: none; }
+            .status-card[aria-selected="true"]::after { display: none; }
+        }
+        @media (max-width: 720px) {
+            .container { padding: 16px 14px 48px; }
+            .page-head h1 { font-size: 24px; }
+            .gsearch { flex-basis: 100%; min-width: 0; }
+            .page-head { align-items: stretch; }
+            .hero-actions .btn { white-space: normal; height: auto; min-height: 40px; padding-top: 6px; padding-bottom: 6px; text-align: left; }
+            .hero { padding: 20px 18px; }
+            .hero-main { flex-direction: column; align-items: flex-start; gap: 18px; }
+            .ring { width: 110px; height: 110px; }
+            .ring::before { inset: 12px; }
+            .ring-inner strong { font-size: 25px; }
+            .status-tabs { gap: 8px; }
+            .status-card { min-width: 0; padding: 12px 10px; }
+            .status-card .sc-title { overflow-wrap: anywhere; }
+            .status-card .sc-num { font-size: 22px; }
+            .status-card .sc-title { font-size: 12.5px; }
+            .panel-top { padding: 16px 16px 0; }
+            .help-box { margin: 14px 16px 0; }
+            .toolbar { padding: 14px 16px; flex-wrap: wrap; }
+            .table-search { max-width: none; flex-basis: 100%; }
+            .cat-select { max-width: none; flex: 1 1 100%; }
+            .subtabs { width: 100%; }
+            .subtab-btn { flex: 1 1 auto; justify-content: center; padding: 0 10px; }
+            .subtab-btn .st-long { display: none; }
+            /* tabulka -> karty */
+            table.offers, table.offers tbody, table.offers tr, table.offers td { display: block; width: 100%; }
+            table.offers thead, table.offers colgroup { display: none; }
+            table.offers tr { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+            table.offers td { padding: 4px 0; border: 0; }
+            table.offers tbody tr:hover td { background: none; }
+            table.offers td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+            .o-url { max-width: none; }
+        }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } html { scroll-behavior: auto; } }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#tableSection">Přeskočit na tabulku nabídek</a>
+    <div class="container">
+
+        <header class="page-head">
+            <div>
+                <h1>Přehled spárovanosti</h1>
+                <p class="page-sub">Zjistěte, které vaše nabídky Heureka přiřadila k produktům v katalogu a co je potřeba opravit ve feedu.</p>
+            </div>
+            <div class="gsearch" id="gsearch" role="search">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="search" id="globalProductSearchInput" placeholder="Najít nabídku (ITEM_ID, název, URL)" aria-label="Hledat nabídku napříč všemi stavy" autocomplete="off">
+                <kbd aria-hidden="true">/</kbd>
+                <div id="globalSearchResultsContainer" class="search-results-container" aria-live="polite"></div>
+            </div>
+        </header>
+
+        <section class="hero" aria-labelledby="heroTitle">
+            <div class="hero-main">
+                <div class="ring" id="ring" role="img" aria-label="Spárovanost">
+                    <div class="ring-inner"><strong id="ringPct">0 %</strong><span>spárováno</span></div>
+                </div>
+                <div class="hero-text">
+                    <h2 id="heroTitle">Načítání…</h2>
+                    <p id="heroDesc"></p>
+                    <div class="hero-actions">
+                        <button type="button" class="btn btn-primary danger" id="heroCta" hidden></button>
+                    </div>
+                </div>
+            </div>
+            <div class="dist">
+                <div class="dist-bar" id="distBar" aria-hidden="true"></div>
+                <div class="dist-legend" id="distLegend"></div>
+            </div>
+        </section>
+
+        <div class="status-tabs" id="statusTabs" role="tablist" aria-label="Stav nabídek"></div>
+
+        <section class="panel" id="tableSection" aria-live="polite">
+            <div class="panel-top">
+                <div class="panel-title-row">
+                    <h3 id="panelTitle"></h3>
+                </div>
+                <div class="subtabs" id="subTabBar" role="tablist" aria-label="Důvod nespárování"></div>
+            </div>
+            <div id="helpBox"></div>
+            <div class="toolbar">
+                <div class="table-search">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input type="search" class="table-search-input" id="tableSearchInput" placeholder="Filtrovat v této tabulce" aria-label="Filtrovat nabídky v tabulce" autocomplete="off">
+                </div>
+                <select class="cat-select" id="categoryFilter" aria-label="Filtrovat podle kategorie"></select>
+                <span class="spacer"></span>
+                <button type="button" class="btn btn-outline" id="csvBtn"><i class="fas fa-file-csv"></i> Stáhnout CSV</button>
+            </div>
+            <div class="table-wrap" id="tableWrap"></div>
+        </section>
+
+    </div>
+
+    <div id="search-page-overlay"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+
+    /* ============ VALIDÁTOR NÁZVU (stejná logika jako ve Feed validátoru) ============ */
+    let RULES = {}, PARAMS = {};
+    try {
+        const proto = await (await fetch('./proto-data.json')).json();
+        RULES = proto.rules || {};
+        PARAMS = proto.params || {};
+    } catch (e) { console.error('Nepodařilo se načíst proto-data.json', e); }
+
+    const fold = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    function dejZakladSlova(slovo) {
+        slovo = fold(slovo);
+        if (slovo.length <= 3) return slovo;
+        const konc = ['ova','ove','ovy','ovou','oveho','ovemu','ovych','ovym','ovymi','ami','em','ech','ich','um','ou','am','y','e','a','i','o','u'];
+        for (const k of konc) { if (slovo.endsWith(k)) { const r = slovo.slice(0, -k.length); if (r.length >= 3) return r; break; } }
+        return slovo;
+    }
+    function najdiPresne(leaf, db) {
+        const k = (leaf || '').toLowerCase().trim();
+        if (Object.prototype.hasOwnProperty.call(db, k)) return db[k];
+        const z = dejZakladSlova(k);
+        for (const kd in db) { if (dejZakladSlova(kd) === z) return db[kd]; }
+        return null;
+    }
+    const parseParams = t => (t ? t.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const splitRule = r => { if (!r) return { format: '', example: '' }; const m = r.match(/\s[–—]\s/); if (!m) return { format: r.trim(), example: '' }; const i = r.indexOf(m[0]); return { format: r.slice(0, i).trim(), example: r.slice(i + m[0].length).trim() }; };
+    const leafOf = ct => (ct || '').split('|').pop().trim().toLowerCase();
+
+    const BARVY = ['cern','bil','cerven','modr','zelen','zlut','oranzov','fialov','ruzov','hned','bezov','zlat','stribr','tyrkys','khaki','antracit','bordo','purpur','azur','kremov','smetanov','vinov','grafit','olivov','lososov','koralov','indigov','marengo','petrolej'];
+    const MATERIALY = ['bavln','polyester','kuze','usen','drev','sklo','plast','nerez','kov','guma','silikon','vlna','vlnen','len','lnen','hedvab','keramik','porcelan'];
+    const PRICHUTE = ['kure','hovez','kral','jehnec','kachn','krut','losos','tunak','drubez','telec','zverin','sardin','tresk','kreve','jelen','vepr','pstruh','ryba','rybi','jahod','cokolad','vanilk','banan','orisk','orech','karamel','kokos','malin','boruvk','visn','citron','pomeranc','jablk','hrusk','mango','meloun','brosk','kava','skoric','pistac','ananas','limetk','oreo','tiramis','slany'];
+    const URCENI = ['adult','junior','senior','kitten','puppy','stenat','stene','dospel','detsk','kastrov','steriliz','large breed','small breed'];
+    const KONZISTENCE = ['v zele','ve stav','v omacc','pastik','mousse','pena','krem','prasek','tablet','kapsl','sirup','tekut','granul','susen','koncentrat','pate'];
+    const slovnikHit = (dic, name) => { const f = fold(name); return dic.some(r => r.includes(' ') ? f.includes(r) : new RegExp('\\b' + r).test(f)); };
+    const POCET_UNITS = ['ks','kus\\w*','pack','balen\\w*','tablet\\w*','kapsl\\w*','tobol\\w*','sac\\w*','porc\\w*','dn[ií]','dni','ampul\\w*'];
+    const numUnit = (f, units) => new RegExp('\\b\\d+([.,]\\d+)?\\s?(' + units.join('|') + ')\\b').test(f);
+    const BARVY_EN = ['black','white','blue','red','green','yellow','orange','purple','pink','brown','grey','gray','gold','silver','navy','beige','turquoise','violet','graphite','midnight','starlight'];
+    const BARVY_EN_MULTI = ['space gray','space grey','rose gold','jet black','sky blue'];
+    const jeBarva = f => BARVY.some(r => new RegExp('\\b' + r).test(f)) || /\bsed[aeiy]/.test(f) || /\bsiv/.test(f) || /barevn/.test(f) || /\bpruhledn/.test(f) || /\btransparent/.test(f) || /\bcir[aey]/.test(f)
+        || BARVY_EN.some(r => new RegExp('\\b' + r + '\\b').test(f)) || BARVY_EN_MULTI.some(r => f.includes(r));
+    function jeKod(name) {
+        return name.split(/\s+/).some(t => {
+            const c = t.replace(/[.,;:()]/g, '');
+            if (/^\d{5,}$/.test(c)) return true;
+            const p = (c.match(/[a-zA-Z]/g) || []).length, d = (c.match(/\d/g) || []).length;
+            return p >= 2 && d >= 1 && c.length >= 4;
+        });
+    }
+    function detekujSlozku(slot, name, manufacturer) {
+        const f = fold(name);
+        switch (slot) {
+            case 'objem':    return numUnit(f, ['ml','cl','dl','l','litr\\w*']);
+            case 'hmotnost': return numUnit(f, ['mg','dkg','kg','g','gr','gram\\w*']);
+            case 'rozmer':   return /\d+([.,]\d+)?\s?[x×]\s?\d/.test(f) || numUnit(f, ['mm','cm','m']);
+            case 'barva':    return jeBarva(f);
+            case 'material': return MATERIALY.some(m => new RegExp('\\b' + m).test(f));
+            case 'velikost': return /\b(XXS|XS|S|M|L|XL|XXL|XXXL)\b/.test(name) || /\bvel\.?\s*\w/.test(f);
+            case 'pamet':    return /\b\d+([.,]\d+)?\s?(gb|tb|mb)\b/.test(f);
+            case 'pocet':    return new RegExp('\\b\\d+\\s?(' + POCET_UNITS.join('|') + ')\\b').test(f) || /\b\d+\s?[x×]\s?\d/.test(f);
+            case 'kod':      return jeKod(name);
+            case 'nazev':    return name.trim().length > 0;
+            case 'prichut':     return slovnikHit(PRICHUTE, name);
+            case 'urceni':      return slovnikHit(URCENI, name);
+            case 'konzistence': return slovnikHit(KONZISTENCE, name);
+            case 'znacka':   return manufacturer ? f.includes(fold(manufacturer)) : null;
+            default:         return null;
+        }
+    }
+    function klasifikujSlozku(label) {
+        const f = fold(label);
+        if (f.includes('objem')) return 'objem';
+        if (f.includes('hmotnost') || f.includes('vaha') || f.includes('gramaz')) return 'hmotnost';
+        if (f.includes('rozmer') || f.includes('delka') || f.includes('prumer')) return 'rozmer';
+        if (f.includes('pamet') || f.includes('uloz')) return 'pamet';
+        if (f.includes('velikost')) return 'velikost';
+        if (f.includes('barva') || f.includes('barevn') || f.includes('odstin')) return 'barva';
+        if (f.includes('material')) return 'material';
+        if (f.includes('cislo') || f.includes('kod') || f.includes('oznaceni')) return 'kod';
+        if (f.includes('pocet') || f.includes('mnozstvi')) return 'pocet';
+        if (f.includes('prichut')) return 'prichut';
+        if (f.includes('urceni')) return 'urceni';
+        if (f.includes('konzistenc')) return 'konzistence';
+        if (f.includes('nazev')) return 'nazev';
+        if (f.includes('znacka') || f.includes('vyrobce')) return 'znacka';
+        return null;
+    }
+    function vzorTokeny(format) {
+        return format.split('|').map(t => {
+            t = t.trim();
+            const m = t.match(/^(.*?)\s*\((.*)\)\s*$/);
+            return { label: (m ? m[1] : t).trim(), optional: !!m && /pokud/i.test(m[2]) };
+        }).filter(t => t.label);
+    }
+    function analyzujNazev(ruleFormat, name, manufacturer) {
+        return vzorTokeny(ruleFormat).map(t => {
+            const slot = klasifikujSlozku(t.label);
+            const res = slot ? detekujSlozku(slot, name, manufacturer) : null;
+            let stav = 'rucne';
+            if (res === true) stav = 'je';
+            else if (res === false) stav = t.optional ? 'nepovinne' : 'chybi';
+            return { label: t.label, stav };
+        });
+    }
+
+    // Diagnostika nabídky podle názvu — vrátí { rule, chybejiciSlozky: [labely] } nebo null, pokud kategorie nemá vzor.
+    function diagnostikaNazvu(offer) {
+        const leaf = leafOf(offer.categoryText);
+        const rule = najdiPresne(leaf, RULES);
+        if (!rule) return null;
+        const format = splitRule(rule).format;
+        const komponenty = analyzujNazev(format, offer.name, offer.manufacturer);
+        const chybejici = komponenty.filter(k => k.stav === 'chybi').map(k => k.label);
+        return { format, chybejici };
+    }
+    // Diagnostika povinných parametrů — vrátí pole chybějících povinných parametrů podle kategorie.
+    function diagnostikaParametru(offer) {
+        const leaf = leafOf(offer.categoryText);
+        const required = parseParams(najdiPresne(leaf, PARAMS));
+        if (!required.length) return [];
+        const mameStemy = (offer.params || []).map(dejZakladSlova);
+        return required.filter(r => { const rz = dejZakladSlova(r); return !mameStemy.some(m => m === rz || m.includes(rz) || rz.includes(m)); });
+    }
+
+    /* ============ UKÁZKOVÁ DATA NABÍDEK ============ */
+    const D = 'https://www.eshop-ukazka.cz';
+
+    const pairedOffers = [
+        { ITEM_ID: 'AB1001', name: 'Apple iPhone 16 256GB Vesmírně černá', url: `${D}/apple-iphone-16-256gb-vesmirne-cerna`, heureka_url: 'https://mobilni-telefony.heureka.cz/apple-iphone-16-256gb/' },
+        { ITEM_ID: 'TVX555', name: 'Samsung QE65S95D OLED 4K Ultra HD Smart televize', url: `${D}/samsung-qe65s95d-oled-uhd-televize`, heureka_url: 'https://televize.heureka.cz/samsung-qe65s95d/' },
+        { ITEM_ID: 'KNZ007', name: 'J. K. Rowling - Harry Potter a Kámen mudrců', url: `${D}/harry-potter-a-kamen-mudrcu`, heureka_url: 'https://knihy.heureka.cz/harry-potter-a-kamen-mudrcu-rowling/' },
+        { ITEM_ID: 'SLCH0Y', name: 'Sony WH-1000XM6 Bezdrátová sluchátka s ANC', url: `${D}/sony-wh-1000xm6-sluchatka`, heureka_url: 'https://sluchatka.heureka.cz/sony-wh-1000xm6/' },
+        { ITEM_ID: 'WASH01', name: 'Bosch Serie 8 Pračka WAX32FH0CS 9kg', url: `${D}/bosch-serie-8-pracka-wax32fh0cs`, heureka_url: 'https://pracky.heureka.cz/bosch-serie-8-wax32FH0CS/' },
+        { ITEM_ID: 'BIKE05', name: 'Horské kolo Kellys Gate 90 29" Deore 1x12', url: `${D}/kellys-gate-90-2024`, heureka_url: 'https://kola.heureka.cz/kellys-gate-90/' },
+        { ITEM_ID: 'WATCH01', name: 'Garmin Fenix 8 Pro chytré hodinky GPS', url: `${D}/garmin-fenix-8-pro`, heureka_url: 'https://chytre-hodinky.heureka.cz/garmin-fenix-8-pro/' },
+        { ITEM_ID: 'TOOL07', name: 'DeWALT DCD791P2 Aku vrtačka 18V 2x5.0Ah', url: `${D}/dewalt-dcd791p2`, heureka_url: 'https://vrtacky.heureka.cz/dewalt-dcd791p2/' },
+    ];
+
+    // Název nabídky tak, jak ho posílá e-shop ve feedu (liší se od názvu produktové karty na Heurece)
+    const ESHOP_NAMES = {
+        AB1001: 'iPhone 16 256 GB, černý (Apple)', TVX555: 'Televize Samsung QE65S95D 65" OLED 4K', KNZ007: 'Harry Potter a Kámen mudrců (kniha) - J. K. Rowling',
+        SLCH0Y: 'Sluchátka Sony WH-1000XM6 s potlačením hluku', WASH01: 'Pračka Bosch WAX32FH0CS Serie 8, 9 kg', BIKE05: 'Kellys Gate 90 horské kolo 29" 2024',
+        WATCH01: 'Garmin fenix 8 Pro - sportovní GPS hodinky', TOOL07: 'DeWALT DCD791P2 aku vrtačka 18 V + 2 baterie 5,0 Ah',
+    };
+    pairedOffers.forEach(o => { o.offerName = ESHOP_NAMES[o.ITEM_ID] || o.name; });
+
+    // Chyba v názvu — kategorie i pravidla reálně existují v proto-data.json, chybějící složky se dopočítají živě.
+    const nameIssueOffers = [
+        { ITEM_ID: 'BAG101', name: 'Dakine Pivot batoh zelený', manufacturer: 'Dakine', url: `${D}/dakine-pivot-batoh-zeleny`, categoryText: 'Heureka.cz | Oblečení, obuv a doplňky | Módní doplňky | Batohy, tašky a kabelky | Batohy' },
+        { ITEM_ID: 'SHO202', name: 'Nebbia šortky 343 černá', manufacturer: 'Nebbia', url: `${D}/nebbia-sortky-343-cerna`, categoryText: 'Heureka.cz | Oblečení, obuv a doplňky | Pánské oblečení | Pánské kraťasy a šortky' },
+        { ITEM_ID: 'SPK303', name: 'Niceboy RAZE 3', manufacturer: 'Niceboy', url: `${D}/niceboy-raze-3`, categoryText: 'Heureka.cz | Elektronika | TV, audio, video | Reproduktory, soundbary | Bluetooth reproduktory' },
+        { ITEM_ID: 'FOT404', name: 'Nikon D3100', manufacturer: 'Nikon', url: `${D}/nikon-d3100`, categoryText: 'Heureka.cz | Elektronika | Foto, kamery, optika | Foto a kamery | Digitální fotoaparáty' },
+        { ITEM_ID: 'CDP505', name: 'Denon DCD-520', manufacturer: 'Denon', url: `${D}/denon-dcd-520`, categoryText: 'Heureka.cz | Elektronika | TV, audio, video | Hi-Fi komponenty | CD přehrávače' },
+        { ITEM_ID: 'SHO606', name: 'Predator X TRX FG', manufacturer: '', url: `${D}/predator-x-trx-fg`, categoryText: 'Heureka.cz | Sport a outdoor | Sporty | Míčové sporty | Fotbal | Fotbalová obuv | Pánské kopačky' },
+    ];
+
+    // Chyba v kategorii — chybějící nebo příliš obecná/neexistující kategorie.
+    const categoryIssueOffers = [
+        { ITEM_ID: 'MYSH01', name: 'Super Herní Myš RGB Extra Tlačítka', url: `${D}/super-herni-mys-rgb`, categoryText: '', note: 'V XML feedu chybí tag CATEGORYTEXT.' },
+        { ITEM_ID: 'LAMP05', name: 'Stolní Lampa LED Modern', url: `${D}/stolni-lampa-led-modern`, categoryText: 'Heureka.cz | Ostatní', note: 'Zaslaná kategorie je příliš obecná a neodpovídá žádné konkrétní kategorii na Heurece.' },
+        { ITEM_ID: 'SOFT001', name: 'Antivirový Software ProGuard - Roční Licence', url: `${D}/antivirovy-software-proguard`, categoryText: 'Heureka.cz | Elektronika | Neznámá podkategorie', note: 'Zaslaná kategorie na Heurece neexistuje (možný překlep nebo zastaralý strom kategorií).' },
+        { ITEM_ID: 'KITCH01', name: 'Kuchyňský robot ProfiCook MasterChef Edition', url: `${D}/proficook-masterchef-edition`, categoryText: 'Heureka.cz | Různé', note: 'Zaslaná kategorie je příliš obecná a neodpovídá žádné konkrétní kategorii na Heurece.' },
+    ];
+
+    // Chybějící povinný parametr — název může být v pořádku, ale povinný PARAM tag v XML chybí.
+    const paramIssueOffers = [
+        { ITEM_ID: 'MIK707', name: 'Alpine Pro Elkini 3 dětská mikina červená 128', url: `${D}/alpine-pro-elkini-3-mikina`, categoryText: 'Heureka.cz | Oblečení, obuv a doplňky | Dětské oblečení | Dětské mikiny a svetry | Dětské mikiny', params: ['Barva', 'Materiál'] },
+        { ITEM_ID: 'SHO808', name: 'Nebbia 266 fitness šortky modré M', url: `${D}/nebbia-266-fitness-sortky`, categoryText: 'Heureka.cz | Oblečení, obuv a doplňky | Dámské oblečení | Dámské šortky', params: ['Barva'] },
+        { ITEM_ID: 'BAG909', name: 'Thule EnRoute batoh černý 23l', url: `${D}/thule-enroute-batoh-cerny-23l`, categoryText: 'Heureka.cz | Oblečení, obuv a doplňky | Módní doplňky | Batohy, tašky a kabelky | Batohy', params: [] },
+    ];
+
+    const waitingOffers = [
+        { ITEM_ID: 'EKBK01', name: "Elektrokolo 'TrailBlazer 5000XT' dojezd 150km", url: `${D}/trailblazer-5000xt`, waitType: 'admin' },
+        { ITEM_ID: 'COFF02', name: "Pákový Kávovar 'AromaMaster Pro G3'", url: `${D}/aromamaster-pro-g3`, waitType: 'admin' },
+        { ITEM_ID: 'DRON03', name: "Dron s 4K kamerou 'SkyExplorer Mini'", url: `${D}/skyexplorer-mini`, waitType: 'admin' },
+        { ITEM_ID: 'VRSET01', name: "VR Headset 'NovaDream X2'", url: `${D}/novadream-x2`, waitType: 'category' },
+        { ITEM_ID: 'SMHOME02', name: "Chytrý zámek 'SecureLock AI v3'", url: `${D}/securelock-ai-v3`, waitType: 'category' },
+    ];
+
+    // Kategorie spárovaných a čekajících nabídek (vzorová data; ve feedu je to CATEGORYTEXT)
+    const H = 'Heureka.cz | ';
+    const CAT_MAP = {
+        AB1001: H + 'Elektronika | Mobily a chytré telefony | Mobilní telefony', TVX555: H + 'Elektronika | TV, audio, video | Televize', KNZ007: H + 'Knihy | Beletrie | Knihy',
+        SLCH0Y: H + 'Elektronika | TV, audio, video | Sluchátka', WASH01: H + 'Bílé zboží | Pračky | Pračky', BIKE05: H + 'Sport a outdoor | Cyklistika | Horská kola',
+        WATCH01: H + 'Elektronika | Chytré hodinky | Chytré hodinky', TOOL07: H + 'Dům a zahrada | Nářadí | Aku vrtačky',
+        EKBK01: H + 'Sport a outdoor | Cyklistika | Elektrokola', COFF02: H + 'Bílé zboží | Kávovary | Pákové kávovary', DRON03: H + 'Elektronika | Foto a kamery | Drony',
+        VRSET01: H + 'Elektronika | Herní konzole | VR headsety', SMHOME02: H + 'Dům a zahrada | Chytrá domácnost | Chytré zámky',
+    };
+    pairedOffers.forEach(o => { o.categoryText = CAT_MAP[o.ITEM_ID] || ''; });
+    waitingOffers.forEach(o => { o.categoryText = CAT_MAP[o.ITEM_ID] || ''; });
+
+    // Předpočítání diagnostiky (živě podle proto-data.json)
+    nameIssueOffers.forEach(o => { o._diag = diagnostikaNazvu(o) || { format: '', chybejici: [] }; });
+    paramIssueOffers.forEach(o => { o._missingParams = diagnostikaParametru(o); });
+
+    /* ============ DEFINICE ZÁLOŽEK ============ */
+    const issueTotal = () => nameIssueOffers.length + categoryIssueOffers.length + paramIssueOffers.length;
+    const TABS = [
+        { id: 'parovane', title: 'Spárované', icon: 'fas fa-check-circle', hint: 'Nabídky propojené s produktem v katalogu. Tady není co řešit.', count: () => pairedOffers.length },
+        { id: 'nesparovane', title: 'Nespárované', icon: 'fas fa-unlink', hint: 'Tyhle nabídky je potřeba opravit ve vašem XML feedu.', count: issueTotal },
+        { id: 'cekajici', title: 'Čekající', icon: 'fas fa-user-clock', hint: 'Zpracovává Heureka. Nemusíte nic dělat.', count: () => waitingOffers.length },
+    ];
+    const allUnpaired = [
+        ...nameIssueOffers.map(o => ({ ...o, sub: 'nazev', reason: 'Chyba v názvu', rIcon: 'fas fa-tag' })),
+        ...categoryIssueOffers.map(o => ({ ...o, sub: 'kategorie', reason: 'Chyba v kategorii', rIcon: 'fas fa-sitemap' })),
+        ...paramIssueOffers.map(o => ({ ...o, sub: 'parametr', reason: 'Chybí parametr', rIcon: 'fas fa-list-alt' })),
+    ];
+    const SUBTABS = [
+        { id: 'vse', title: 'Všechny nespárované', short: 'Všechny', icon: 'fas fa-list', data: allUnpaired,
+          help: { title: 'Co je potřeba opravit', text: 'Všechny nespárované nabídky pohromadě. Sloupec Důvod ukazuje, v čem je problém, a Co opravit konkrétně, co chybí.', link: ['https://sluzby.heureka.cz/napoveda/xml-feed/', 'Specifikace feedu'] } },
+        { id: 'nazev', title: 'Chyba v názvu', short: 'Název', icon: 'fas fa-tag', data: nameIssueOffers,
+          help: { title: 'Jak opravit název', text: 'V názvu nabídky (PRODUCTNAME) chybí údaje, které Heureka v dané kategorii očekává. Doplňte je podle vzoru kategorie.', link: ['https://sluzby.heureka.cz/napoveda/xml-feed/', 'Specifikace feedu'] } },
+        { id: 'kategorie', title: 'Chyba v kategorii', short: 'Kategorie', icon: 'fas fa-sitemap', data: categoryIssueOffers,
+          help: { title: 'Jak opravit kategorii', text: 'Kategorie ve feedu (CATEGORYTEXT) chybí, je příliš obecná, nebo na Heurece neexistuje. Použijte přesnou cestu ze stromu kategorií.', link: ['https://www.heureka.cz/direct/xml-export/shops/heureka-sekce.xml', 'Strom kategorií'] } },
+        { id: 'parametr', title: 'Chybějící povinný parametr', short: 'Parametr', icon: 'fas fa-list-alt', data: paramIssueOffers,
+          help: { title: 'Jak doplnit parametry', text: 'Pro kategorii chybí povinný PARAM tag. Pošlete ho jako samostatný tag, nestačí hodnota v názvu produktu.', link: ['https://sluzby.heureka.cz/napoveda/xml-feed/#parametry', 'Povinné parametry'] } },
+    ];
+
+    const NEUTRAL_HELP = {
+        parovane: { icon: 'fa-circle-check', title: 'Vše v pořádku', text: 'Tyto nabídky jsou správně spárované. Název produktu vede na Heureku, název nabídky na váš e-shop.' },
+        cekajici: { icon: 'fa-hourglass-half', title: 'Zpracovává Heureka', text: 'Nabídky čekají na kontrolu administrátorem nebo na spuštění kategorie. Z vaší strany není potřeba žádná akce.' },
+    };
+
+    const VALID_TABS = TABS.map(t => t.id);
+    let activeTab = issueTotal() > 0 ? 'nesparovane' : 'parovane';
+    let activeSubTab = 'vse';
+    let searchTerm = '';
+    let categoryFilter = '';
+    let pinnedId = null;
+
+    // Obnovení stavu z odkazu (#nesparovane/kategorie)
+    (function readHash() {
+        const [t, s] = location.hash.replace('#', '').split('/');
+        if (VALID_TABS.includes(t)) { activeTab = t; if (SUBTABS.some(x => x.id === s)) activeSubTab = s; }
+    })();
+
+    /* ============ POMOCNÉ ============ */
+    function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+    function debounce(fn, delay) { let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), delay); }; }
+    const $ = id => document.getElementById(id);
+    const NO_CAT = '(bez kategorie)';
+    const catName = o => (o.categoryText || '').split('|').pop().trim() || NO_CAT;
+    const fmt = n => n.toLocaleString('cs-CZ');
+    function offerMatchesSearch(offer, term) {
+        if (!term) return true;
+        return fold([offer.ITEM_ID, offer.name, offer.offerName, offer.url].filter(Boolean).join(' ')).includes(fold(term));
+    }
+    let toastTimer;
+    function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+
+    /* ============ SLOUPCE TABULKY ============ */
+    const idCell = o => `<button type="button" class="id-chip" data-copy="${escapeHTML(o.ITEM_ID)}" title="Zkopírovat ITEM_ID" aria-label="Zkopírovat ITEM_ID ${escapeHTML(o.ITEM_ID)}">${escapeHTML(o.ITEM_ID)} <i class="far fa-copy" aria-hidden="true"></i></button>`;
+    const nameWithUrl = o => `<a class="o-name" href="${escapeHTML(o.url)}" target="_blank" rel="noopener" title="Otevřít nabídku na e-shopu">${escapeHTML(o.name)} <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i></a>`;
+    const COL_ID = { header: 'ITEM_ID', cls: 'col-id', render: idCell, csv: o => o.ITEM_ID };
+    const COL_CAT = { header: 'Kategorie', cls: 'col-cat', render: o => escapeHTML(catName(o)), csv: o => catName(o) };
+    const COL_NAME = { header: 'Název nabídky', cls: 'col-name', render: nameWithUrl, csv: o => o.name };
+    const missingTags = arr => `<div class="tag-missing-list">${arr.map(c => `<span class="tag-missing"><i class="fas fa-xmark" aria-hidden="true"></i> ${escapeHTML(c)}</span>`).join('')}</div>`;
+
+    function currentDatasetAndColumns() {
+        if (activeTab === 'parovane') {
+            return { offers: pairedOffers, title: 'Spárované nabídky', columns: [
+                COL_ID,
+                { header: 'Produktová karta na Heurece', cls: 'col-name', render: o => `<a class="o-name" href="${escapeHTML(o.heureka_url)}" target="_blank" rel="noopener">${escapeHTML(o.name)} <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i></a>`, csv: o => o.name },
+                COL_CAT,
+                { header: 'Název nabídky na e-shopu', cls: 'col-url', render: o => `<a class="o-name" href="${escapeHTML(o.url)}" target="_blank" rel="noopener" title="Otevřít nabídku na e-shopu">${escapeHTML(o.offerName)} <i class="fas fa-external-link-alt fa-xs" aria-hidden="true"></i></a>`, csv: o => o.offerName },
+            ]};
+        }
+        if (activeTab === 'cekajici') {
+            return { offers: waitingOffers, title: 'Čekající nabídky', columns: [
+                COL_ID, COL_NAME, COL_CAT,
+                { header: 'Na co se čeká', cls: 'col-wait', render: o => o.waitType === 'admin'
+                    ? `<span class="wait-badge admin"><i class="fas fa-user-clock" aria-hidden="true"></i> Kontrola administrátorem</span>`
+                    : `<span class="wait-badge category"><i class="fas fa-sitemap" aria-hidden="true"></i> Spuštění kategorie</span>`,
+                  csv: o => o.waitType === 'admin' ? 'Čeká na kontrolu administrátorem' : 'Čeká na spuštění kategorie' },
+            ]};
+        }
+        const sub = SUBTABS.find(s => s.id === activeSubTab);
+        if (activeSubTab === 'vse') {
+            const fix = o => o.sub === 'nazev' ? 'V názvu chybí: ' + (o._diag.chybejici.join(', ') || '–') : o.sub === 'kategorie' ? o.note : 'Chybí parametry: ' + (o._missingParams.join(', ') || '–');
+            return { offers: sub.data, title: 'Nespárované: všechny nabídky', columns: [
+                COL_ID, COL_NAME, COL_CAT,
+                { header: 'Důvod', cls: 'col-url', render: o => `<span class="pill danger"><i class="${o.rIcon}" aria-hidden="true"></i> ${escapeHTML(o.reason)}</span>`, csv: o => o.reason },
+                { header: 'Co opravit', cls: 'col-issue', render: o => `<span class="cat-missing-note">${escapeHTML(fix(o))}</span>`, csv: o => fix(o) },
+            ]};
+        }
+        if (activeSubTab === 'nazev') {
+            return { offers: sub.data, title: 'Nespárované: chyba v názvu', columns: [
+                COL_ID, COL_NAME,
+                { header: 'Kategorie', cls: 'col-cat', render: o => `<span>${escapeHTML(catName(o))}</span>${o._diag.format ? `<span class="rule-hint">Vzor: ${escapeHTML(o._diag.format)}</span>` : ''}`, csv: o => leafOf(o.categoryText) },
+                { header: 'Co v názvu chybí', cls: 'col-issue', render: o => o._diag.chybejici.length ? missingTags(o._diag.chybejici)
+                    : `<span class="cat-missing-note">Podle vzoru kategorie nic nechybí, ověřte ručně.</span>`, csv: o => o._diag.chybejici.join(', ') },
+            ]};
+        }
+        if (activeSubTab === 'kategorie') {
+            return { offers: sub.data, title: 'Nespárované: chyba v kategorii', columns: [
+                COL_ID, COL_NAME,
+                { header: 'Zaslaná kategorie', cls: 'col-cat', render: o => o.categoryText ? escapeHTML(o.categoryText) : `<span class="cat-value-missing">(nevyplněno)</span>`, csv: o => o.categoryText || '(nevyplněno)' },
+                { header: 'Co je špatně', cls: 'col-issue', render: o => `<span class="cat-missing-note">${escapeHTML(o.note)}</span>`, csv: o => o.note },
+            ]};
+        }
+        return { offers: sub.data, title: 'Nespárované: chybějící povinný parametr', columns: [
+            COL_ID, COL_NAME,
+            { header: 'Kategorie', cls: 'col-cat', render: o => escapeHTML(catName(o)), csv: o => catName(o) },
+            { header: 'Chybějící parametry', cls: 'col-issue', render: o => o._missingParams.length ? missingTags(o._missingParams) : `<span class="cat-missing-note">–</span>`, csv: o => o._missingParams.join(', ') },
+        ]};
+    }
+
+    /* ============ CSV ============ */
+    function convertToCSV(offers, columns) {
+        const esc = f => { const s = String(f ?? ''); return (s.includes(';') || s.includes('"') || s.includes('\n')) ? `"${s.replace(/"/g, '""')}"` : s; };
+        let csv = columns.map(c => esc(c.header)).join(';') + '\r\n';
+        offers.forEach(o => { csv += columns.map(c => esc(c.csv(o))).join(';') + '\r\n'; });
+        return csv;
+    }
+    function downloadCSV(csvString, filename) {
+        const blob = new Blob([`﻿${csvString}`], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a'); const url = URL.createObjectURL(blob);
+        link.href = url; link.download = filename; link.style.visibility = 'hidden';
+        document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+    }
+
+    /* ============ RENDER ============ */
+    // Statické prvky (karty, podzáložky) se vytvoří jednou, potom se jen přepínají atributy — nezmizí fokus z klávesnice.
+    function buildStaticUI() {
+        $('statusTabs').innerHTML = TABS.map(t => `
+            <button type="button" role="tab" class="status-card" data-tab="${t.id}" id="tab-${t.id}" aria-selected="false" aria-controls="tableSection">
+                <span class="sc-icon"><i class="${t.icon}" aria-hidden="true"></i></span>
+                <span class="sc-num" data-count="${t.id}">0</span>
+                <span class="sc-title">${t.title}</span>
+                <span class="sc-hint">${t.hint}</span>
+            </button>`).join('');
+        $('subTabBar').innerHTML = SUBTABS.map(s => `
+            <button type="button" role="tab" class="subtab-btn" data-subtab="${s.id}" aria-selected="false">
+                <i class="${s.icon}" aria-hidden="true"></i><span class="st-long">${s.title}</span><span class="st-short" hidden>${s.short}</span><span class="tab-count">${s.data.length}</span>
+            </button>`).join('');
+        $('statusTabs').querySelectorAll('.status-card').forEach(b => b.addEventListener('click', () => setView(b.dataset.tab)));
+        $('subTabBar').querySelectorAll('.subtab-btn').forEach(b => b.addEventListener('click', () => setView('nesparovane', b.dataset.subtab)));
+        // šipky mezi záložkami
+        [$('statusTabs'), $('subTabBar')].forEach(bar => bar.addEventListener('keydown', e => {
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            const tabs = [...bar.querySelectorAll('[role="tab"]')]; const i = tabs.indexOf(document.activeElement); if (i < 0) return;
+            const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]; next.focus(); next.click(); e.preventDefault();
+        }));
+        $('tableWrap').addEventListener('click', e => {
+            const chip = e.target.closest('.id-chip'); if (!chip) return;
+            const val = chip.dataset.copy;
+            (navigator.clipboard ? navigator.clipboard.writeText(val) : Promise.reject()).then(() => toast(`ITEM_ID ${val} zkopírováno`), () => toast('Kopírování se nepodařilo'));
+        });
+        $('csvBtn').addEventListener('click', () => {
+            const { offers, columns } = currentDatasetAndColumns();
+            downloadCSV(convertToCSV(offers.filter(o => offerMatchesSearch(o, searchTerm) && (!categoryFilter || catName(o) === categoryFilter)), columns), `${activeTab}${activeTab === 'nesparovane' ? '-' + activeSubTab : ''}.csv`);
+        });
+        $('tableSearchInput').addEventListener('input', debounce(function () { searchTerm = this.value; pinnedId = null; renderTable(); }, 200));
+        $('categoryFilter').addEventListener('change', function () { categoryFilter = this.value; pinnedId = null; $('categoryFilter').classList.toggle('active', !!categoryFilter); renderTable(); });
+    }
+
+    function setView(tab, sub, opts = {}) {
+        if (tab) activeTab = tab;
+        if (sub) activeSubTab = sub;
+        categoryFilter = '';
+        if (opts.search !== undefined) { searchTerm = opts.search; pinnedId = opts.pin || null; } else { searchTerm = ''; pinnedId = null; }
+        $('tableSearchInput').value = searchTerm;
+        try { history.replaceState(null, '', '#' + activeTab + (activeTab === 'nesparovane' ? '/' + activeSubTab : '')); } catch (e) {}
+        renderView();
+        if (opts.scroll) $('tableSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderView() {
+        // karty
+        $('statusTabs').querySelectorAll('.status-card').forEach(b => { const on = b.dataset.tab === activeTab; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+        // podzáložky
+        const isUnpaired = activeTab === 'nesparovane';
+        const subBar = $('subTabBar'); subBar.style.display = isUnpaired ? 'flex' : 'none';
+        subBar.querySelectorAll('.subtab-btn').forEach(b => { const on = b.dataset.subtab === activeSubTab; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+        // nápověda
+        const help = $('helpBox');
+        if (isUnpaired) {
+            const h = SUBTABS.find(s => s.id === activeSubTab).help;
+            help.innerHTML = `<div class="help-box"><i class="fas fa-wrench" aria-hidden="true"></i><div><strong>${h.title}</strong><p>${h.text} <a href="${h.link[0]}" target="_blank" rel="noopener">${h.link[1]} <i class="fas fa-arrow-up-right-from-square fa-xs" aria-hidden="true"></i></a></p></div></div>`;
+        } else {
+            const h = NEUTRAL_HELP[activeTab];
+            help.innerHTML = `<div class="help-box neutral"><i class="fas ${h.icon}" aria-hidden="true"></i><div><strong>${h.title}</strong><p>${h.text}</p></div></div>`;
+        }
+        fillCategoryFilter();
+        renderTable();
+        renderSummary();
+    }
+
+    // Nabídka kategorií podle aktuální tabulky (s počty nabídek)
+    function fillCategoryFilter() {
+        const { offers } = currentDatasetAndColumns();
+        const counts = new Map();
+        offers.forEach(o => { const c = catName(o); counts.set(c, (counts.get(c) || 0) + 1); });
+        const names = [...counts.keys()].sort((a, b) => (a === NO_CAT) - (b === NO_CAT) || a.localeCompare(b, 'cs'));
+        if (categoryFilter && !counts.has(categoryFilter)) categoryFilter = '';
+        const sel = $('categoryFilter');
+        sel.innerHTML = `<option value="">Všechny kategorie (${offers.length})</option>` + names.map(n => `<option value="${escapeHTML(n)}">${escapeHTML(n)} (${counts.get(n)})</option>`).join('');
+        sel.value = categoryFilter;
+        sel.classList.toggle('active', !!categoryFilter);
+    }
+
+    function renderTable() {
+        const { offers, title, columns } = currentDatasetAndColumns();
+        const filtered = offers.filter(o => offerMatchesSearch(o, searchTerm) && (!categoryFilter || catName(o) === categoryFilter));
+        if (pinnedId) filtered.sort((a, b) => (b.ITEM_ID === pinnedId) - (a.ITEM_ID === pinnedId));
+        $('panelTitle').innerHTML = `${escapeHTML(title)}<span class="count-note">${(searchTerm || categoryFilter) ? `${filtered.length} z ${offers.length}` : offers.length}</span>`;
+        $('csvBtn').disabled = !filtered.length;
+        const filtering = searchTerm || categoryFilter;
+
+        if (!filtered.length) {
+            $('tableWrap').innerHTML = filtering
+                ? `<div class="empty-note"><i class="fas fa-magnifying-glass" style="color:var(--text-2)"></i><strong>Nic jsme nenašli</strong>Zkuste jiný výraz nebo kategorii.</div>`
+                : `<div class="empty-note"><i class="fas fa-circle-check"></i><strong>Tady nic nezbývá</strong>V této skupině nejsou žádné nabídky.</div>`;
+            return;
+        }
+        const colgroup = columns.map(c => `<col class="${c.cls}">`).join('');
+        const thead = `<tr>${columns.map(c => `<th scope="col">${escapeHTML(c.header)}</th>`).join('')}</tr>`;
+        const tbody = filtered.map(o => `<tr data-id="${escapeHTML(o.ITEM_ID)}"${o.ITEM_ID === pinnedId ? ' class="flash"' : ''}>${columns.map(c => `<td data-label="${escapeHTML(c.header)}">${c.render(o)}</td>`).join('')}</tr>`).join('');
+        $('tableWrap').innerHTML = `<table class="offers"><colgroup>${colgroup}</colgroup><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+    }
+
+    /* ============ SOUHRN (hero, prstenec, rozložení) ============ */
+    function renderSummary() {
+        const paired = pairedOffers.length, bad = issueTotal(), wait = waitingOffers.length, total = paired + bad + wait;
+        TABS.forEach(t => { const el = document.querySelector(`[data-count="${t.id}"]`); if (el) el.textContent = fmt(t.count()); });
+
+        const pct = total > 0 ? Math.round((paired / total) * 100) : 0;
+        const ring = $('ring');
+        ring.style.setProperty('--pct', pct);
+        ring.className = 'ring ' + (pct >= 80 ? 'tone-green' : pct >= 50 ? 'tone-orange' : 'tone-red');
+        ring.setAttribute('aria-label', `Spárováno ${pct} % z ${total} nabídek`);
+        $('ringPct').textContent = pct + ' %';
+
+        let title, desc;
+        if (bad === 0) { title = 'Všechno je spárované'; desc = 'Žádná nabídka nevyžaduje opravu. Udržujte si tenhle standard.'; }
+        else if (pct >= 80) { title = 'Skvělá spárovanost'; desc = `Spárováno je ${paired} z ${total} nabídek. ${bad === 1 ? 'Zbývá opravit 1 nabídku' : `Zbývá opravit ${bad} nabídek`}, aby byl přehled čistý.`; }
+        else if (pct >= 50) { title = 'Dobrý základ, ale je co zlepšovat'; desc = `Spárováno je ${paired} z ${total} nabídek. Nejrychleji skóre zvednete opravou ${bad} nespárovaných nabídek.`; }
+        else { title = 'Většina nabídek zatím není spárovaná'; desc = `Spárováno je jen ${paired} z ${total} nabídek. Nespárované nabídky se nepropojí s produktem v katalogu, proto doporučujeme opravit feed co nejdřív.`; }
+        $('heroTitle').textContent = title; $('heroDesc').textContent = desc;
+
+        const cta = $('heroCta');
+        if (bad > 0) { cta.hidden = false; cta.innerHTML = `<i class="fas fa-wrench" aria-hidden="true"></i> Opravit nespárované (${bad})`; } else cta.hidden = true;
+
+        const segs = [['parovane', 'Spárované', paired, 'var(--green)'], ['nesparovane', 'Nespárované', bad, 'var(--red)'], ['cekajici', 'Čekající', wait, 'var(--orange)']];
+        $('distBar').innerHTML = segs.filter(s => s[2] > 0).map(s => `<button type="button" class="dist-seg" data-tab="${s[0]}" style="flex-grow:${s[2]}" tabindex="-1" title="${s[1]}: ${s[2]}"></button>`).join('');
+        $('distBar').querySelectorAll('.dist-seg').forEach(b => b.addEventListener('click', () => setView(b.dataset.tab, undefined, { scroll: true })));
+        $('distLegend').innerHTML = segs.map(s => `<span><i style="background:${s[3]}"></i>${s[1]} ${s[2]}</span>`).join('') + `<span>Celkem ${total}</span>`;
+    }
+
+    /* ============ GLOBÁLNÍ VYHLEDÁVÁNÍ ============ */
+    const globalIndex = (() => {
+        const tag = (arr, label, type, icon, tab, sub) => arr.map(o => ({ ...o, statusTitle: label, statusType: type, statusIcon: icon, tab, sub }));
+        return [
+            ...tag(pairedOffers, 'Spárováno', 'success', 'fas fa-check-circle', 'parovane'),
+            ...tag(nameIssueOffers, 'Chyba v názvu', 'danger', 'fas fa-tag', 'nesparovane', 'nazev'),
+            ...tag(categoryIssueOffers, 'Chyba v kategorii', 'danger', 'fas fa-sitemap', 'nesparovane', 'kategorie'),
+            ...tag(paramIssueOffers, 'Chybí parametr', 'danger', 'fas fa-list-alt', 'nesparovane', 'parametr'),
+            ...tag(waitingOffers, 'Čeká', 'warning', 'fas fa-user-clock', 'cekajici'),
+        ];
+    })();
+
+    function setupGlobalSearch() {
+        const input = $('globalProductSearchInput'), container = $('globalSearchResultsContainer'), overlay = $('search-page-overlay');
+        let shown = [];
+        const hide = () => { overlay.style.display = 'none'; container.classList.remove('active'); };
+        const show = () => { overlay.style.display = 'block'; container.classList.add('active'); };
+        const run = () => {
+            const term = input.value.trim();
+            if (term.length < 2) { container.innerHTML = ''; container.classList.remove('active'); return; }
+            shown = globalIndex.filter(o => offerMatchesSearch(o, term)).slice(0, 30);
+            container.innerHTML = shown.length
+                ? `<div class="sr-head">${shown.length} ${shown.length === 1 ? 'nabídka' : 'nabídek'}, klikněte pro zobrazení v tabulce</div>` + shown.map((p, i) => `
+                    <button type="button" class="search-result-item" data-i="${i}">
+                        <span><span class="product-name">${escapeHTML(p.name)}</span><span class="product-item-id">${escapeHTML(p.ITEM_ID)}</span></span>
+                        <span class="pill ${p.statusType}"><i class="${p.statusIcon}" aria-hidden="true"></i> ${escapeHTML(p.statusTitle)}</span>
+                    </button>`).join('')
+                : '<p class="sr-empty">Nic jsme nenašli. Zkuste ITEM_ID, část názvu nebo URL.</p>';
+            show();
+        };
+        input.addEventListener('input', debounce(run, 200));
+        input.addEventListener('focus', () => { if (input.value.trim().length >= 2) show(); });
+        container.addEventListener('click', e => {
+            const b = e.target.closest('.search-result-item'); if (!b) return;
+            const p = shown[+b.dataset.i];
+            hide(); input.value = ''; input.blur();
+            setView(p.tab, p.sub, { search: p.ITEM_ID, pin: p.ITEM_ID, scroll: true });
+        });
+        overlay.addEventListener('click', () => { hide(); input.blur(); });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && container.classList.contains('active')) { hide(); input.blur(); }
+            if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { e.preventDefault(); input.focus(); input.select(); }
+        });
+    }
+
+    /* ============ OSTATNÍ ============ */
+    function setupMisc() {
+        $('heroCta').addEventListener('click', () => setView('nesparovane', SUBTABS.find(s => s.data.length > 0)?.id || 'nazev', { scroll: true }));
+        // krátké názvy podzáložek na úzkých displejích
+        const mq = window.matchMedia('(max-width: 720px)');
+        const apply = () => document.querySelectorAll('.subtab-btn').forEach(b => { b.querySelector('.st-long').style.display = mq.matches ? 'none' : ''; b.querySelector('.st-short').hidden = !mq.matches; });
+        mq.addEventListener('change', apply); apply();
+    }
+
+    /* ============ INIT ============ */
+    try {
+        buildStaticUI();
+        renderView();
+        setupGlobalSearch();
+        setupMisc();
+    } catch (e) {
+        console.error('Chyba při inicializaci stránky:', e);
+    }
+});
+</script>
+</body>
+</html>
